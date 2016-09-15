@@ -4,7 +4,11 @@ var net = require('net'),
 	msgpack = require('msgpack');
 	shuffle = require('shuffle-array'),
 
-
+var requestType = {
+	1: 'GOSSIP_MESSAGE',
+	2: 'GOSSIP_ACK',
+	3: 'GOSSIP_ACK2'
+}
 
 var Gossiper = function(host, port, seeds){
 	this.host = host
@@ -21,7 +25,7 @@ Gossiper.prototype.start = function() {
 	// create gossip server to exchange gossip messages.
 	this.server = net.createServer(function(connection){
 		var message_stream = new msgpack.Stream(connection);
-		message_stream.addListener('msg', function(msg) { handleGossip(msg)});
+		message_stream.addListener('msg', function(msg) { handleGossip(connection, message_stream, msg)});
 	})
 	this.server.listen(this.port, this.host, function(){})
 
@@ -66,9 +70,19 @@ Gossiper.prototype.alivePeers = function(first_argument) {
 	return this.alivePeers
 };
 
-Gossiper.prototype.handleGossip = function(message) {
-
-	
+Gossiper.prototype.handleGossip = function(connection, message_stream, message) {
+	request_type = message.type
+	switch(requestType[request_type]){
+		case 'GOSSIP_MESSAGE':
+			gossipAck = GossipMessageUtil.createDigestAck1(message, this.stateMap)
+			message_stream.send(gossipAck)
+		case 'GOSSIP_ACK':
+			gossipAck2 = GossipMessageUtil.createDigestAck2(message, this.stateMap)
+			updateOnAck1(message)
+			message_stream.send(gossipAck2)
+		case 'GOSSIP_ACK2':
+			updateOnAck2(message)
+	}
 };
 
 
@@ -135,6 +149,31 @@ Gossiper.prototype.sendGossip = function(endpoint, message) {
 		var message_stream = new msgpack.Stream(connection);
 		message_stream.send(message)
 	})
+};
+
+
+Gossiper.prototype.updateOnAck1 = function(message) {
+	digests = message.digests
+	states = message.states
+	updateStates(states)
+};
+
+Gossiper.prototype.updateOnAck2 = function(message) {
+	states = message.states
+	updateStates(states)
+};
+
+Gossiper.prototype.updateStates = function(states) {
+	for(var remote_state in states){
+		peer_name = remote_state['name']
+		local_state = this.stateMap[peer_name]
+		if(!_.isEmpty(local_state) and !_.isNull(local_state)){
+			local_state.updateContent(remote_state.content)
+		}
+		else{
+			local_state.setContent(remote_state.content)
+		}
+	}
 };
 
 
