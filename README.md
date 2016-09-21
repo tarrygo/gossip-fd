@@ -60,7 +60,7 @@ gossiper.on('peer_died', function(obj){
 })
 ```
 #### "peer_state_updated"
-Peers State has been updated. 
+Peers State has been updated.
 event object: {'name': 'PeerStateUpdated', peer: peer_gossiper}
 ```
 gossiper.on('peer_state_updated', function(obj){
@@ -68,7 +68,7 @@ gossiper.on('peer_state_updated', function(obj){
 })
 ```
 #### 'peer_alive'
-New peer has been discovered
+New peer has been discovered.
 event object: {'name': 'new_peer_added', peer: peer_gossiper}
 ```
 gossiper.on('new_peer_added', function(obj){
